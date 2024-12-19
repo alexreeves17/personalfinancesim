@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-gradient-to-br from-blue-50 to-indigo-50 min-h-screen;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-white/80 backdrop-blur-lg border border-white/20 shadow-xl;
+  }
+  
+  .metric-card {
+    @apply p-4 rounded-xl glass-card transition-all hover:scale-[1.02] hover:shadow-2xl;
+  }
+
+  .graph-line {
+    @apply transition-all duration-300 hover:stroke-[3px] hover:filter hover:drop-shadow-md;
+  }
+}
