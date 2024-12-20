@@ -1,5 +1,8 @@
 import type { FinancialProfile, SimulationResult, Milestone } from '../types/finance';
-import { calculateFutureValue, calculateDebtPaydown } from './simulation';
+import { calculateMonthlyDebtPaydown } from './finance/debtCalculator';
+import { calculateMonthlyInvestmentGrowth } from './finance/investmentCalculator';
+import { calculateMonthlySavingsGrowth } from './finance/savingsCalculator';
+import { ANNUAL_RATES } from './finance/constants';
 import { applyMilestonesToSimulation } from './milestones';
 
 interface Allocation {
@@ -18,41 +21,38 @@ export function runFinancialSimulation(
   const monthlyInvestment = monthlySavings * (allocation.investments / 100);
   const monthlyDebtPayment = monthlySavings * (allocation.debtPayment / 100);
   const emergencySavings = monthlySavings * (allocation.savings / 100);
-  // Discretionary spending reduces available money for other allocations
-  const discretionarySpending = monthlySavings * (allocation.discretionary / 100);
-
-  const totalDebt = profile.debt.studentLoans + profile.debt.creditCards + profile.debt.otherLoans;
   
+  const totalDebt = profile.debt.studentLoans + profile.debt.creditCards + profile.debt.otherLoans;
   const baseResults: SimulationResult[] = [];
   
   for (let year = 1; year <= 5; year++) {
-    const futureInvestments = calculateFutureValue(
+    const months = year * 12;
+    
+    const investmentProgression = calculateMonthlyInvestmentGrowth(
       profile.currentInvestments,
       monthlyInvestment,
-      0.07,
-      year
+      months
     );
 
-    const futureSavings = calculateFutureValue(
+    const savingsProgression = calculateMonthlySavingsGrowth(
       profile.currentSavings,
       emergencySavings,
-      0.02,
-      year
+      months
     );
 
-    const remainingDebt = calculateDebtPaydown(
+    const debtProgression = calculateMonthlyDebtPaydown(
       totalDebt,
       monthlyDebtPayment,
-      0.05,
-      year
+      ANNUAL_RATES.DEBT_INTEREST.STUDENT_LOANS,
+      months
     );
 
     baseResults.push({
       year: new Date().getFullYear() + year,
-      savings: futureSavings,
-      investments: futureInvestments,
-      netWorth: futureInvestments + futureSavings - remainingDebt,
-      debtRemaining: remainingDebt,
+      savings: savingsProgression[months - 1],
+      investments: investmentProgression[months - 1],
+      debtRemaining: debtProgression[months - 1],
+      netWorth: savingsProgression[months - 1] + investmentProgression[months - 1] - debtProgression[months - 1],
       goalProgress: {}
     });
   }

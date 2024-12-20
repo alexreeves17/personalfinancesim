@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import type { SimulationResult } from '../types/finance';
 import { Tooltip } from './Tooltip';
 
@@ -19,18 +19,40 @@ interface TooltipData {
 
 export function ProjectionGraph({ results }: Props) {
   const [tooltip, setTooltip] = useState<TooltipData | null>(null);
+  const [dimensions, setDimensions] = useState({ width: 800, height: 500 });
+  const graphRef = useRef<HTMLDivElement>(null);
   
   const maxValue = Math.max(...results.map(r => Math.max(r.investments, r.savings, r.netWorth)));
-  const height = 400;
-  const width = 800;
-  const padding = 60;
+  const padding = { top: 40, right: 40, bottom: 60, left: 80 };
+
+  useEffect(() => {
+    const updateDimensions = () => {
+      if (graphRef.current) {
+        const { width } = graphRef.current.getBoundingClientRect();
+        setDimensions({
+          width,
+          height: Math.min(600, Math.max(400, width * 0.6))
+        });
+      }
+    };
+
+    updateDimensions();
+    const observer = new ResizeObserver(updateDimensions);
+    if (graphRef.current) {
+      observer.observe(graphRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, []);
 
   const getY = (value: number) => {
-    return height - (value / maxValue) * (height - padding * 2) - padding;
+    const availableHeight = dimensions.height - padding.top - padding.bottom;
+    return dimensions.height - ((value / maxValue) * availableHeight) - padding.bottom;
   };
 
   const getX = (index: number) => {
-    return (index / (results.length - 1)) * (width - padding * 2) + padding;
+    const availableWidth = dimensions.width - padding.left - padding.right;
+    return padding.left + (index / (results.length - 1)) * availableWidth;
   };
 
   const createPath = (values: number[]) => {
@@ -40,13 +62,15 @@ export function ProjectionGraph({ results }: Props) {
   };
 
   const handleMouseMove = (event: React.MouseEvent<SVGElement>, index: number) => {
-    const svgRect = event.currentTarget.getBoundingClientRect();
-    const x = event.clientX - svgRect.left;
-    const y = event.clientY - svgRect.top;
+    if (!graphRef.current) return;
+
+    const rect = graphRef.current.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
     
     setTooltip({
-      x: x + 20, // Offset to not cover the point
-      y: y - 100, // Position above the cursor
+      x,
+      y,
       data: {
         year: results[index].year,
         savings: results[index].savings,
@@ -56,18 +80,14 @@ export function ProjectionGraph({ results }: Props) {
     });
   };
 
-  const handleMouseLeave = () => {
-    setTooltip(null);
-  };
-
   return (
-    <div className="glass-card p-6 rounded-xl relative">
+    <div ref={graphRef} className="glass-card p-6 w-full min-h-[500px]">
       <h2 className="text-2xl font-bold mb-6 text-gray-800">Financial Growth Projection</h2>
       <svg 
-        width={width} 
-        height={height} 
+        width={dimensions.width} 
+        height={dimensions.height}
         className="w-full h-auto"
-        onMouseLeave={handleMouseLeave}
+        onMouseLeave={() => setTooltip(null)}
       >
         <defs>
           <linearGradient id="netWorthGradient" x1="0" y1="0" x2="0" y2="1">
@@ -80,9 +100,9 @@ export function ProjectionGraph({ results }: Props) {
         {Array.from({ length: 5 }).map((_, i) => (
           <line
             key={`grid-${i}`}
-            x1={padding}
+            x1={padding.left}
             y1={getY(maxValue * (i + 1) / 5)}
-            x2={width - padding}
+            x2={dimensions.width - padding.right}
             y2={getY(maxValue * (i + 1) / 5)}
             stroke="#e5e7eb"
             strokeDasharray="4"
@@ -90,14 +110,28 @@ export function ProjectionGraph({ results }: Props) {
         ))}
 
         {/* Axes */}
-        <line x1={padding} y1={padding} x2={padding} y2={height-padding} 
-          stroke="#94a3b8" strokeWidth="2" />
-        <line x1={padding} y1={height-padding} x2={width-padding} y2={height-padding} 
-          stroke="#94a3b8" strokeWidth="2" />
+        <line 
+          x1={padding.left} 
+          y1={padding.top} 
+          x2={padding.left} 
+          y2={dimensions.height - padding.bottom} 
+          stroke="#94a3b8" 
+          strokeWidth="2" 
+        />
+        <line 
+          x1={padding.left} 
+          y1={dimensions.height - padding.bottom} 
+          x2={dimensions.width - padding.right} 
+          y2={dimensions.height - padding.bottom} 
+          stroke="#94a3b8" 
+          strokeWidth="2" 
+        />
 
         {/* Area under net worth line */}
         <path
-          d={`${createPath(results.map(r => r.netWorth))} L ${getX(results.length - 1)} ${height-padding} L ${padding} ${height-padding} Z`}
+          d={`${createPath(results.map(r => r.netWorth))} 
+              L ${getX(results.length - 1)} ${dimensions.height - padding.bottom} 
+              L ${padding.left} ${dimensions.height - padding.bottom} Z`}
           fill="url(#netWorthGradient)"
         />
         
@@ -127,7 +161,6 @@ export function ProjectionGraph({ results }: Props) {
         {/* Interactive areas */}
         {results.map((result, i) => (
           <g key={`points-${i}`}>
-            {/* Invisible larger circle for better hover */}
             <circle
               cx={getX(i)}
               cy={getY(result.netWorth)}
@@ -136,7 +169,6 @@ export function ProjectionGraph({ results }: Props) {
               onMouseMove={(e) => handleMouseMove(e, i)}
               className="cursor-pointer"
             />
-            {/* Visible data points */}
             <circle cx={getX(i)} cy={getY(result.netWorth)} r="4" fill="#3b82f6" />
             <circle cx={getX(i)} cy={getY(result.investments)} r="4" fill="#10b981" />
             <circle cx={getX(i)} cy={getY(result.savings)} r="4" fill="#f59e0b" />
@@ -149,7 +181,7 @@ export function ProjectionGraph({ results }: Props) {
           return (
             <text
               key={`label-${i}`}
-              x={padding - 10}
+              x={padding.left - 10}
               y={getY(value)}
               textAnchor="end"
               alignmentBaseline="middle"
@@ -164,7 +196,7 @@ export function ProjectionGraph({ results }: Props) {
           <text
             key={`year-${i}`}
             x={getX(i)}
-            y={height - padding + 20}
+            y={dimensions.height - padding.bottom + 20}
             textAnchor="middle"
             className="text-sm text-gray-600"
           >
@@ -173,7 +205,7 @@ export function ProjectionGraph({ results }: Props) {
         ))}
 
         {/* Legend */}
-        <g transform={`translate(${padding}, ${padding/2})`} className="text-sm">
+        <g transform={`translate(${padding.left}, ${padding.top/2})`} className="text-sm">
           {[
             { label: "Net Worth", color: "#3b82f6" },
             { label: "Investments", color: "#10b981" },
@@ -187,12 +219,12 @@ export function ProjectionGraph({ results }: Props) {
         </g>
       </svg>
 
-      <Tooltip
-        x={tooltip?.x ?? 0}
-        y={tooltip?.y ?? 0}
-        visible={tooltip !== null}
-      >
-        {tooltip && (
+      {tooltip && (
+        <Tooltip
+          x={tooltip.x}
+          y={tooltip.y}
+          visible={true}
+        >
           <div className="space-y-1">
             <div className="font-medium">{tooltip.data.year}</div>
             <div className="grid grid-cols-2 gap-x-4 gap-y-1">
@@ -204,8 +236,8 @@ export function ProjectionGraph({ results }: Props) {
               <span>${tooltip.data.savings.toLocaleString()}</span>
             </div>
           </div>
-        )}
-      </Tooltip>
+        </Tooltip>
+      )}
     </div>
   );
 }

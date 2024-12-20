@@ -1,14 +1,11 @@
 import React, { useMemo } from 'react';
 import { AllocationGauge } from './allocation/AllocationGauge';
-import { Info } from 'lucide-react';
+import { Info, Wand2 } from 'lucide-react';
 import { calculateStateTax } from '../utils/tax';
-
-interface Allocation {
-  investments: number;
-  debtPayment: number;
-  savings: number;
-  discretionary: number;
-}
+import { states } from '../data/states';
+import { findOptimalAllocation } from '../utils/optimization/allocationOptimizer';
+import { useAllocationControls } from './allocation/useAllocationControls';
+import type { FinancialProfile, Allocation } from '../types/finance';
 
 interface Props {
   allocation: Allocation;
@@ -16,23 +13,17 @@ interface Props {
   monthlyExpenses: number;
   state: string;
   onChange: (allocation: Allocation) => void;
+  profile: FinancialProfile;
 }
 
-export function AllocationControls({ allocation, annualIncome, monthlyExpenses, state, onChange }: Props) {
+export function AllocationControls({ allocation, annualIncome, monthlyExpenses, state, onChange, profile }: Props) {
   const { monthlyDisposable, distributions } = useMemo(() => {
-    // Example tax brackets for demonstration - you'd want to load these from a config
-    const stateTaxBrackets = [
-      { rate: 5, threshold: 0 },
-      { rate: 7, threshold: 50000 },
-      { rate: 9, threshold: 100000 }
-    ];
-
-    const stateTax = calculateStateTax(annualIncome, stateTaxBrackets);
-    // Simplified federal tax calculation - you'd want to make this more accurate
-    const federalTax = annualIncome * 0.22; 
+    const stateInfo = states.find(s => s.code === state);
+    const stateTax = stateInfo ? calculateStateTax(annualIncome, stateInfo.brackets) : 0;
+    const federalTax = annualIncome * 0.22;
     
     const monthlyAfterTax = (annualIncome - stateTax - federalTax) / 12;
-    const monthlyDisposable = monthlyAfterTax - monthlyExpenses;
+    const monthlyDisposable = Math.max(0, monthlyAfterTax - monthlyExpenses);
 
     const distributions = {
       investments: (monthlyDisposable * allocation.investments) / 100,
@@ -44,36 +35,27 @@ export function AllocationControls({ allocation, annualIncome, monthlyExpenses, 
     return { monthlyDisposable, distributions };
   }, [annualIncome, monthlyExpenses, state, allocation]);
 
-  const handleChange = (key: keyof Allocation, value: number) => {
-    const total = Object.entries(allocation)
-      .reduce((sum, [k, v]) => sum + (k === key ? value : v), 0);
+  const { handleChange } = useAllocationControls(allocation, onChange);
 
-    if (total > 100) {
-      const remaining = 100 - value;
-      const currentTotal = Object.entries(allocation)
-        .reduce((sum, [k, v]) => sum + (k === key ? 0 : v), 0);
-      
-      const newAllocation = Object.entries(allocation).reduce((acc, [k, v]) => ({
-        ...acc,
-        [k]: k === key ? value : Math.round(v * (remaining / currentTotal))
-      }), {} as Allocation);
-
-      onChange(newAllocation);
-    } else {
-      onChange({
-        ...allocation,
-        [key]: value
-      });
-    }
+  const handleOptimize = () => {
+    const optimalAllocation = findOptimalAllocation(profile);
+    onChange(optimalAllocation);
   };
 
-  const remaining = 100 - Object.values(allocation).reduce((sum, v) => sum + v, 0);
-
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
+    <div className="glass-card p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h3 className="text-lg font-medium">Disposable Income Allocation</h3>
+          <div className="flex items-center gap-4">
+            <h3 className="text-lg font-medium">Disposable Income Allocation</h3>
+            <button
+              onClick={handleOptimize}
+              className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200"
+            >
+              <Wand2 className="w-4 h-4 mr-1.5" />
+              Optimize
+            </button>
+          </div>
           <p className="text-sm text-gray-500 mt-1">
             Monthly Disposable Income: ${monthlyDisposable.toLocaleString()}
           </p>
@@ -83,6 +65,7 @@ export function AllocationControls({ allocation, annualIncome, monthlyExpenses, 
           Drag the circles to adjust
         </div>
       </div>
+      
       <div className="flex flex-wrap justify-center gap-8">
         <AllocationGauge
           value={allocation.investments}
@@ -113,11 +96,6 @@ export function AllocationControls({ allocation, annualIncome, monthlyExpenses, 
           onChange={(value) => handleChange('discretionary', value)}
         />
       </div>
-      {remaining > 0 && (
-        <p className="mt-4 text-center text-sm text-gray-500">
-          {remaining}% remaining to allocate
-        </p>
-      )}
     </div>
   );
 }

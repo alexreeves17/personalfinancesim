@@ -4,20 +4,43 @@
 
 @layer base {
   body {
-    @apply bg-gradient-to-br from-blue-50 to-indigo-50 min-h-screen;
+    @apply bg-gradient-to-br from-blue-50 via-indigo-50 to-violet-50 min-h-screen;
+    background-size: 200% 200%;
+    animation: gradient 15s ease infinite;
   }
 }
 
 @layer components {
   .glass-card {
-    @apply bg-white/80 backdrop-blur-lg border border-white/20 shadow-xl;
+    @apply bg-white/90 backdrop-blur-lg border border-gray-200 shadow-lg;
+  }
+  
+  .form-input {
+    @apply block w-full pl-10 pr-4 py-3 text-base border border-gray-300 
+           rounded-lg bg-white shadow-sm
+           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+           hover:border-blue-300 transition-colors;
+  }
+
+  .form-group {
+    @apply space-y-1.5;
+  }
+  
+  .form-label {
+    @apply block text-sm font-medium text-gray-700;
   }
   
   .metric-card {
-    @apply p-4 rounded-xl glass-card transition-all hover:scale-[1.02] hover:shadow-2xl;
+    @apply p-4 rounded-xl glass-card transition-all hover:scale-[1.02];
   }
 
   .graph-line {
     @apply transition-all duration-300 hover:stroke-[3px] hover:filter hover:drop-shadow-md;
   }
+}
+
+@keyframes gradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }

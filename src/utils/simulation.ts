@@ -1,37 +1,8 @@
-export function calculateFutureValue(
-  principal: number,
-  monthlyContribution: number,
-  annualInterestRate: number,
-  years: number
-): number {
-  const monthlyRate = annualInterestRate / 12;
-  const months = years * 12;
-  let futureValue = principal;
-
-  for (let i = 0; i < months; i++) {
-    futureValue = (futureValue + monthlyContribution) * (1 + monthlyRate);
-  }
-
-  return Math.round(futureValue);
-}
-
-export function calculateDebtPaydown(
-  principal: number,
-  monthlyPayment: number,
-  annualInterestRate: number,
-  years: number
-): number {
-  const monthlyRate = annualInterestRate / 12;
-  const months = years * 12;
-  let remainingDebt = principal;
-
-  for (let i = 0; i < months; i++) {
-    remainingDebt = (remainingDebt * (1 + monthlyRate)) - monthlyPayment;
-    if (remainingDebt < 0) remainingDebt = 0;
-  }
-
-  return Math.round(remainingDebt);
-}
+import type { SimulationResult } from '../types/finance';
+import { calculateMonthlyDebtPaydown } from './finance/debtCalculator';
+import { calculateMonthlyInvestmentGrowth } from './finance/investmentCalculator';
+import { calculateMonthlySavingsGrowth } from './finance/savingsCalculator';
+import { ANNUAL_RATES, MONTHS_IN_YEAR } from './finance/constants';
 
 interface MonthlyValue {
   savings: number;
@@ -40,30 +11,43 @@ interface MonthlyValue {
   debt: number;
 }
 
-export function calculateMonthlyValues(yearResult: SimulationResult): MonthlyValue[] {
+export function calculateMonthlyValues(
+  yearResult: SimulationResult,
+  monthlyContributions: {
+    savings: number;
+    investments: number;
+    debtPayment: number;
+  }
+): MonthlyValue[] {
   const monthlyValues: MonthlyValue[] = [];
-  const monthlyInvestmentReturn = 0.07 / 12;
-  const monthlySavingsReturn = 0.02 / 12;
-  const monthlyDebtRate = 0.05 / 12;
-  
-  let currentSavings = yearResult.savings / (1 + 0.02);
-  let currentInvestments = yearResult.investments / (1 + 0.07);
-  let currentDebt = yearResult.debtRemaining * (1 + 0.05);
-  
-  const monthlySavingsContribution = (yearResult.savings - currentSavings) / 12;
-  const monthlyInvestmentContribution = (yearResult.investments - currentInvestments) / 12;
-  const monthlyDebtPayment = (currentDebt - yearResult.debtRemaining) / 12;
 
-  for (let month = 0; month < 12; month++) {
-    currentSavings = (currentSavings + monthlySavingsContribution) * (1 + monthlySavingsReturn);
-    currentInvestments = (currentInvestments + monthlyInvestmentContribution) * (1 + monthlyInvestmentReturn);
-    currentDebt = (currentDebt * (1 + monthlyDebtRate)) - monthlyDebtPayment;
-    
+  // Calculate monthly progression for each component
+  const savingsProgression = calculateMonthlySavingsGrowth(
+    yearResult.savings,
+    monthlyContributions.savings,
+    MONTHS_IN_YEAR
+  );
+
+  const investmentProgression = calculateMonthlyInvestmentGrowth(
+    yearResult.investments,
+    monthlyContributions.investments,
+    MONTHS_IN_YEAR
+  );
+
+  const debtProgression = calculateMonthlyDebtPaydown(
+    yearResult.debtRemaining,
+    monthlyContributions.debtPayment,
+    ANNUAL_RATES.DEBT_INTEREST.STUDENT_LOANS, // Using student loan rate as default
+    MONTHS_IN_YEAR
+  );
+
+  // Combine monthly values
+  for (let i = 0; i < MONTHS_IN_YEAR; i++) {
     monthlyValues.push({
-      savings: Math.round(currentSavings),
-      investments: Math.round(currentInvestments),
-      netWorth: Math.round(currentSavings + currentInvestments - currentDebt),
-      debt: Math.round(currentDebt)
+      savings: savingsProgression[i],
+      investments: investmentProgression[i],
+      debt: debtProgression[i],
+      netWorth: savingsProgression[i] + investmentProgression[i] - debtProgression[i]
     });
   }
 

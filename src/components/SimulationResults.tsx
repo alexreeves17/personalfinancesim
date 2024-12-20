@@ -5,13 +5,20 @@ import { ProjectionGraph } from './ProjectionGraph';
 
 interface Props {
   results: SimulationResult[];
+  monthlyContributions: {
+    savings: number;
+    investments: number;
+    debtPayment: number;
+  };
 }
 
-export function SimulationResults({ results }: Props) {
+export function SimulationResults({ results, monthlyContributions }: Props) {
+  if (!results || results.length === 0) return null;
+  
   return (
     <div className="space-y-6">
       <ProjectionGraph results={results} />
-      <div className="bg-white rounded-lg shadow-md p-6">
+      <div className="glass-card p-6">
         <h2 className="text-xl font-semibold mb-4">5-Year Financial Projection</h2>
         <div className="space-y-4">
           {results.map((result, index) => (
@@ -19,6 +26,7 @@ export function SimulationResults({ results }: Props) {
               key={result.year} 
               result={result}
               previousResult={index > 0 ? results[index - 1] : undefined}
+              monthlyContributions={monthlyContributions}
             />
           ))}
         </div>

@@ -6,6 +6,7 @@ export const initialProfile: FinancialProfile = {
   monthlyExpenses: 3000,
   currentSavings: 10000,
   currentInvestments: 15000,
+  state: 'CA',
   debt: {
     studentLoans: 30000,
     creditCards: 5000,
