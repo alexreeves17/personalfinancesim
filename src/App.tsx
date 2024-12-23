@@ -1,52 +1,91 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Header } from './components/Header';
 import { FinancialProfileForm } from './components/FinancialProfileForm';
 import { SimulationResults } from './components/SimulationResults';
-import { AdvancedSettings } from './components/advanced/AdvancedSettings';
 import { AllocationControls } from './components/AllocationControls';
-import { ShareButton } from './components/ShareButton';
-import { useSharedData } from './hooks/useSharedData';
-import type { FinancialProfile, SimulationResult, Milestone } from './types/finance';
+import { GoalsSection } from './components/goals/GoalsSection';
+import { AuthModal } from './components/auth/AuthModal';
+import { useAuth } from './hooks/useAuth';
+import type { FinancialProfile, SimulationResult } from './types/finance';
 import { runFinancialSimulation } from './utils/simulationRunner';
 import { initialProfile } from './config/initialData';
 
+const initialAllocation = {
+  investments: 50,
+  debtPayment: 20,
+  savings: 20,
+  discretionary: 10
+};
+
 export default function App() {
+  const { user, loading, saveProfile, loadProfile } = useAuth();
   const [profile, setProfile] = useState<FinancialProfile>(initialProfile);
+  const [allocation, setAllocation] = useState(initialAllocation);
   const [results, setResults] = useState<SimulationResult[]>([]);
-  const [milestones, setMilestones] = useState<Milestone[]>([]);
-  const [allocation, setAllocation] = useState({
-    investments: 50,
-    debtPayment: 20,
-    savings: 20,
-    discretionary: 10
-  });
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [shouldSaveOnAuth, setShouldSaveOnAuth] = useState(false);
 
-  const handleLoadSharedData = useCallback((sharedProfile: FinancialProfile, sharedAllocation: typeof allocation) => {
-    setProfile(sharedProfile);
-    setAllocation(sharedAllocation);
-    const results = runFinancialSimulation(sharedProfile, sharedAllocation, []);
-    setResults(results);
-  }, []);
+  // Load user's saved profile
+  useEffect(() => {
+    if (user) {
+      loadProfile().then(data => {
+        if (data) {
+          setProfile(data.financial_profile);
+          setAllocation(data.allocation);
+        }
+      }).catch(console.error);
+    }
+  }, [user, loadProfile]);
 
-  useSharedData({ onLoadSharedData: handleLoadSharedData });
+  const handleRunSimulation = useCallback(() => {
+    const newResults = runFinancialSimulation(profile, allocation, []);
+    setResults(newResults);
+  }, [profile, allocation]);
 
-  const handleRunSimulation = () => {
-    const results = runFinancialSimulation(profile, allocation, milestones);
-    setResults(results);
+  // Save profile after simulation if user is authenticated
+  useEffect(() => {
+    if (user && results.length > 0) {
+      saveProfile(profile, allocation).catch(console.error);
+    }
+  }, [user, results, profile, allocation, saveProfile]);
+
+  const handleAuthClick = () => {
+    setShowAuthModal(true);
+    setShouldSaveOnAuth(true);
   };
 
-  const monthlySavings = (profile.annualIncome / 12) - profile.monthlyExpenses;
-  const monthlyContributions = {
-    investments: monthlySavings * (allocation.investments / 100),
-    debtPayment: monthlySavings * (allocation.debtPayment / 100),
-    savings: monthlySavings * (allocation.savings / 100)
-  };
+  const handleAuthSuccess = useCallback(() => {
+    if (shouldSaveOnAuth) {
+      saveProfile(profile, allocation).catch(console.error);
+    }
+  }, [shouldSaveOnAuth, profile, allocation, saveProfile]);
+
+  // Run initial simulation only once after loading
+  useEffect(() => {
+    if (!loading) {
+      handleRunSimulation();
+    }
+  }, [loading]); // Intentionally omit handleRunSimulation to prevent infinite loop
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  const monthlyDisposable = (profile.annualIncome / 12 - profile.monthlyExpenses);
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <Header />
+      <Header user={user} onAuthClick={handleAuthClick} />
       <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 space-y-6">
-        <FinancialProfileForm profile={profile} onUpdate={setProfile} />
+        <FinancialProfileForm 
+          profile={profile} 
+          onUpdate={setProfile}
+          onSimulate={handleRunSimulation}
+        />
         
         <AllocationControls
           allocation={allocation}
@@ -54,35 +93,51 @@ export default function App() {
           monthlyExpenses={profile.monthlyExpenses}
           state={profile.state}
           onChange={setAllocation}
+          onSimulate={handleRunSimulation}
           profile={profile}
         />
-        
-        <AdvancedSettings
-          milestones={milestones}
-          onAddMilestone={(milestone) => setMilestones(prev => [...prev, milestone])}
-          onDeleteMilestone={(id) => setMilestones(prev => prev.filter(m => m.id !== id))}
-        />
-
-        <div className="flex flex-col sm:flex-row gap-4 items-center">
-          <button
-            onClick={handleRunSimulation}
-            className="w-full sm:w-auto px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-          >
-            Run Simulation
-          </button>
-
-          {results.length > 0 && (
-            <ShareButton profile={profile} allocation={allocation} />
-          )}
-        </div>
 
         {results.length > 0 && (
-          <SimulationResults 
-            results={results} 
-            monthlyContributions={monthlyContributions}
-          />
+          <>
+            <SimulationResults 
+              results={results}
+              monthlyContributions={{
+                investments: monthlyDisposable * (allocation.investments / 100),
+                debtPayment: monthlyDisposable * (allocation.debtPayment / 100),
+                savings: monthlyDisposable * (allocation.savings / 100)
+              }}
+            />
+
+            <div className="glass-card p-6">
+              <h2 className="text-xl font-semibold mb-6">Financial Goals</h2>
+              <GoalsSection
+                monthlyDisposable={
+                  monthlyDisposable * 
+                  (allocation.savings + allocation.investments) / 100
+                }
+                profile={{
+                  annualIncome: profile.annualIncome,
+                  debt: profile.debt
+                }}
+                onGoalsUpdate={(goals) => {
+                  handleRunSimulation();
+                }}
+              />
+            </div>
+          </>
         )}
       </main>
+      
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => {
+          setShowAuthModal(false);
+          setShouldSaveOnAuth(false);
+        }}
+        onSuccess={handleAuthSuccess}
+        profile={profile}
+        allocation={allocation}
+      />
     </div>
   );
 }

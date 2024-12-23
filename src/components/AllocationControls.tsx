@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { AllocationGauge } from './allocation/AllocationGauge';
-import { Info, Wand2 } from 'lucide-react';
+import { Info, Wand2, PlayCircle } from 'lucide-react';
 import { calculateStateTax } from '../utils/tax';
 import { states } from '../data/states';
 import { findOptimalAllocation } from '../utils/optimization/allocationOptimizer';
@@ -13,10 +13,19 @@ interface Props {
   monthlyExpenses: number;
   state: string;
   onChange: (allocation: Allocation) => void;
+  onSimulate: () => void;
   profile: FinancialProfile;
 }
 
-export function AllocationControls({ allocation, annualIncome, monthlyExpenses, state, onChange, profile }: Props) {
+export function AllocationControls({ 
+  allocation, 
+  annualIncome, 
+  monthlyExpenses, 
+  state, 
+  onChange,
+  onSimulate,
+  profile 
+}: Props) {
   const { monthlyDisposable, distributions } = useMemo(() => {
     const stateInfo = states.find(s => s.code === state);
     const stateTax = stateInfo ? calculateStateTax(annualIncome, stateInfo.brackets) : 0;
@@ -35,7 +44,9 @@ export function AllocationControls({ allocation, annualIncome, monthlyExpenses, 
     return { monthlyDisposable, distributions };
   }, [annualIncome, monthlyExpenses, state, allocation]);
 
-  const { handleChange } = useAllocationControls(allocation, onChange);
+  const { handleChange } = useAllocationControls(allocation, (newAllocation) => {
+    onChange(newAllocation);
+  });
 
   const handleOptimize = () => {
     const optimalAllocation = findOptimalAllocation(profile);
@@ -43,10 +54,10 @@ export function AllocationControls({ allocation, annualIncome, monthlyExpenses, 
   };
 
   return (
-    <div className="glass-card p-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="glass-card p-4 sm:p-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
             <h3 className="text-lg font-medium">Disposable Income Allocation</h3>
             <button
               onClick={handleOptimize}
@@ -62,11 +73,12 @@ export function AllocationControls({ allocation, annualIncome, monthlyExpenses, 
         </div>
         <div className="flex items-center text-sm text-gray-500">
           <Info className="w-4 h-4 mr-1" />
-          Drag the circles to adjust
+          <span className="hidden sm:inline">Drag the circles to adjust</span>
+          <span className="sm:hidden">Tap to adjust values</span>
         </div>
       </div>
       
-      <div className="flex flex-wrap justify-center gap-8">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 sm:gap-12 justify-items-center">
         <AllocationGauge
           value={allocation.investments}
           label="Investments"
@@ -95,6 +107,16 @@ export function AllocationControls({ allocation, annualIncome, monthlyExpenses, 
           monthlyAmount={distributions.discretionary}
           onChange={(value) => handleChange('discretionary', value)}
         />
+      </div>
+
+      <div className="flex justify-center mt-8 sm:mt-12">
+        <button
+          onClick={onSimulate}
+          className="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors w-full sm:w-auto justify-center"
+        >
+          <PlayCircle className="w-5 h-5 mr-2" />
+          Run Simulation
+        </button>
       </div>
     </div>
   );

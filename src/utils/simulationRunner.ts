@@ -2,8 +2,10 @@ import type { FinancialProfile, SimulationResult, Milestone } from '../types/fin
 import { calculateMonthlyDebtPaydown } from './finance/debtCalculator';
 import { calculateMonthlyInvestmentGrowth } from './finance/investmentCalculator';
 import { calculateMonthlySavingsGrowth } from './finance/savingsCalculator';
+import { calculateMonthlyDisposable, calculateMonthlyPayments } from './finance/monthlyPayments';
+import { distributeDebtPayments } from './finance/debtDistribution';
 import { ANNUAL_RATES } from './finance/constants';
-import { applyMilestonesToSimulation } from './milestones';
+import { applyMilestonesToSimulation } from './milestones/applyMilestones';
 
 interface Allocation {
   investments: number;
@@ -17,12 +19,10 @@ export function runFinancialSimulation(
   allocation: Allocation,
   milestones: Milestone[]
 ): SimulationResult[] {
-  const monthlySavings = (profile.annualIncome / 12) - profile.monthlyExpenses;
-  const monthlyInvestment = monthlySavings * (allocation.investments / 100);
-  const monthlyDebtPayment = monthlySavings * (allocation.debtPayment / 100);
-  const emergencySavings = monthlySavings * (allocation.savings / 100);
+  const monthlyDisposable = calculateMonthlyDisposable(profile);
+  const monthlyPayments = calculateMonthlyPayments(monthlyDisposable, allocation);
   
-  const totalDebt = profile.debt.studentLoans + profile.debt.creditCards + profile.debt.otherLoans;
+  const debtPayments = distributeDebtPayments(monthlyPayments.debtPayment, profile.debt);
   const baseResults: SimulationResult[] = [];
   
   for (let year = 1; year <= 5; year++) {
@@ -30,29 +30,49 @@ export function runFinancialSimulation(
     
     const investmentProgression = calculateMonthlyInvestmentGrowth(
       profile.currentInvestments,
-      monthlyInvestment,
+      monthlyPayments.investments,
       months
     );
 
     const savingsProgression = calculateMonthlySavingsGrowth(
       profile.currentSavings,
-      emergencySavings,
+      monthlyPayments.savings,
       months
     );
 
-    const debtProgression = calculateMonthlyDebtPaydown(
-      totalDebt,
-      monthlyDebtPayment,
+    // Calculate each debt type separately with its own interest rate
+    const studentLoanProgression = calculateMonthlyDebtPaydown(
+      profile.debt.studentLoans,
+      debtPayments.studentLoans,
       ANNUAL_RATES.DEBT_INTEREST.STUDENT_LOANS,
       months
     );
+
+    const creditCardProgression = calculateMonthlyDebtPaydown(
+      profile.debt.creditCards,
+      debtPayments.creditCards,
+      ANNUAL_RATES.DEBT_INTEREST.CREDIT_CARDS,
+      months
+    );
+
+    const otherLoanProgression = calculateMonthlyDebtPaydown(
+      profile.debt.otherLoans,
+      debtPayments.otherLoans,
+      ANNUAL_RATES.DEBT_INTEREST.OTHER_LOANS,
+      months
+    );
+
+    const totalDebtRemaining = 
+      studentLoanProgression[months - 1] +
+      creditCardProgression[months - 1] +
+      otherLoanProgression[months - 1];
 
     baseResults.push({
       year: new Date().getFullYear() + year,
       savings: savingsProgression[months - 1],
       investments: investmentProgression[months - 1],
-      debtRemaining: debtProgression[months - 1],
-      netWorth: savingsProgression[months - 1] + investmentProgression[months - 1] - debtProgression[months - 1],
+      debtRemaining: totalDebtRemaining,
+      netWorth: savingsProgression[months - 1] + investmentProgression[months - 1] - totalDebtRemaining,
       goalProgress: {}
     });
   }

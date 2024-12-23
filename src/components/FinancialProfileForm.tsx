@@ -6,9 +6,10 @@ import type { FinancialProfile } from '../types/finance';
 interface Props {
   profile: FinancialProfile;
   onUpdate: (profile: FinancialProfile) => void;
+  onSimulate: () => void;
 }
 
-export function FinancialProfileForm({ profile, onUpdate }: Props) {
+export function FinancialProfileForm({ profile, onUpdate, onSimulate }: Props) {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     const numValue = parseFloat(value);
