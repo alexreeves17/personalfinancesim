@@ -1,11 +1,21 @@
-export const ANNUAL_RATES = {
-  INVESTMENT_RETURN: 0.07,  // 7% annual return
-  SAVINGS_RETURN: 0.02,     // 2% annual return
-  DEBT_INTEREST: {
-    STUDENT_LOANS: 0.05,    // 5% APR
-    CREDIT_CARDS: 0.18,     // 18% APR
-    OTHER_LOANS: 0.08       // 8% APR
-  }
-} as const;
-
 export const MONTHS_IN_YEAR = 12;
+
+export function getAnnualRates(rates: {
+  inflation: number;
+  investmentReturn: number;
+  savingsInterest: number;
+  studentLoanInterest: number;
+  creditCardInterest: number;
+  otherLoanInterest: number;
+}) {
+  return {
+    INVESTMENT_RETURN: rates.investmentReturn / 100,
+    SAVINGS_RETURN: rates.savingsInterest / 100,
+    INFLATION: rates.inflation / 100,
+    DEBT_INTEREST: {
+      STUDENT_LOANS: rates.studentLoanInterest / 100,
+      CREDIT_CARDS: rates.creditCardInterest / 100,
+      OTHER_LOANS: rates.otherLoanInterest / 100
+    }
+  };
+}

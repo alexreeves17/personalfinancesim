@@ -1,11 +1,12 @@
-import { ANNUAL_RATES, MONTHS_IN_YEAR } from './constants';
+import { MONTHS_IN_YEAR } from './constants';
 
 export function calculateMonthlyInvestmentGrowth(
   principal: number,
   monthlyContribution: number,
-  months: number
+  months: number,
+  annualRate: number
 ): number[] {
-  const monthlyRate = ANNUAL_RATES.INVESTMENT_RETURN / MONTHS_IN_YEAR;
+  const monthlyRate = annualRate / MONTHS_IN_YEAR;
   let balance = principal;
   const monthlyBalances: number[] = [];
 

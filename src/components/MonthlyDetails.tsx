@@ -9,10 +9,20 @@ interface Props {
     investments: number;
     debtPayment: number;
   };
+  profile: {
+    rates: {
+      inflation: number;
+      investmentReturn: number;
+      savingsInterest: number;
+      studentLoanInterest: number;
+      creditCardInterest: number;
+      otherLoanInterest: number;
+    };
+  };
 }
 
-export function MonthlyDetails({ result, monthlyContributions }: Props) {
-  const monthlyValues = calculateMonthlyValues(result, monthlyContributions);
+export function MonthlyDetails({ result, monthlyContributions, profile }: Props) {
+  const monthlyValues = calculateMonthlyValues(result, monthlyContributions, profile.rates);
 
   return (
     <div className="border-t border-gray-100 p-4 sm:p-6 overflow-x-auto">

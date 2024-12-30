@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
+import { Target } from 'lucide-react';
 import { GoalSelector } from './GoalSelector';
 import { GoalForm } from './GoalForm';
 import { GoalList } from './GoalList';
 import { CalculatorModal } from '../calculators/CalculatorModal';
+import { SectionCard } from '../common/SectionCard';
 import type { Goal, GoalType } from '../../types/goals';
 import { calculateGoalProgress } from '../../utils/goals/progressCalculator';
 
@@ -68,59 +70,65 @@ export function GoalsSection({ monthlyDisposable, onGoalsUpdate, profile }: Prop
   const progress = calculateGoalProgress(goals, monthlyDisposable);
 
   return (
-    <div className="space-y-8">
-      {goals.length === 0 ? (
-        <>
-          <p className="text-center text-gray-500">
-            Add your financial goals to see how they fit into your plan
-          </p>
-          <GoalSelector onSelect={handleTypeSelect} />
-        </>
-      ) : (
-        <div className="space-y-6">
-          <GoalList
-            goals={goals}
-            progress={progress}
-            monthlyDisposable={monthlyDisposable}
-            onDelete={handleDelete}
-          />
-          {!selectedType && (
-            <button
-              onClick={() => setSelectedType('custom')}
-              className="w-full py-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-blue-500 hover:text-blue-500 transition-colors"
-            >
-              Add Another Goal
-            </button>
-          )}
-        </div>
-      )}
+    <SectionCard
+      icon={Target}
+      title="Financial Goals"
+      subtitle="Set and track your financial milestones"
+    >
+      <div className="space-y-8">
+        {goals.length === 0 ? (
+          <>
+            <p className="text-center text-gray-500">
+              Add your financial goals to see how they fit into your plan
+            </p>
+            <GoalSelector onSelect={handleTypeSelect} />
+          </>
+        ) : (
+          <div className="space-y-6">
+            <GoalList
+              goals={goals}
+              progress={progress}
+              monthlyDisposable={monthlyDisposable}
+              onDelete={handleDelete}
+            />
+            {!selectedType && (
+              <button
+                onClick={() => setSelectedType('custom')}
+                className="w-full py-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-indigo-500 hover:text-indigo-500 transition-colors"
+              >
+                Add Another Goal
+              </button>
+            )}
+          </div>
+        )}
 
-      {selectedType && (
-        <div className="glass-card p-6">
-          <h3 className="text-lg font-medium mb-4">Add New Goal</h3>
-          <GoalForm
-            type={selectedType}
-            calculatorResult={calculatorResult}
-            profile={profile}
-            onSubmit={handleGoalSubmit}
-            onCancel={() => {
-              setSelectedType(null);
-              setCalculatorResult(null);
-            }}
-          />
-        </div>
-      )}
+        {selectedType && (
+          <div className="glass-card p-6">
+            <h3 className="text-lg font-medium mb-4">Add New Goal</h3>
+            <GoalForm
+              type={selectedType}
+              calculatorResult={calculatorResult}
+              profile={profile}
+              onSubmit={handleGoalSubmit}
+              onCancel={() => {
+                setSelectedType(null);
+                setCalculatorResult(null);
+              }}
+            />
+          </div>
+        )}
 
-      <CalculatorModal
-        type="house"
-        isOpen={showCalculator}
-        onClose={() => setShowCalculator(false)}
-        onCalculate={(result) => {
-          setCalculatorResult(result);
-          setShowCalculator(false);
-        }}
-        profile={profile}
-      />
-    </div>
+        <CalculatorModal
+          type="house"
+          isOpen={showCalculator}
+          onClose={() => setShowCalculator(false)}
+          onCalculate={(result) => {
+            setCalculatorResult(result);
+            setShowCalculator(false);
+          }}
+          profile={profile}
+        />
+      </div>
+    </SectionCard>
   );
 }

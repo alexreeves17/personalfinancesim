@@ -11,5 +11,13 @@ export const initialProfile: FinancialProfile = {
     studentLoans: 30000,
     creditCards: 5000,
     otherLoans: 0
+  },
+  rates: {
+    inflation: 2.5,
+    investmentReturn: 7.0,
+    savingsInterest: 2.0,
+    studentLoanInterest: 5.0,
+    creditCardInterest: 18.0,
+    otherLoanInterest: 8.0
   }
 };

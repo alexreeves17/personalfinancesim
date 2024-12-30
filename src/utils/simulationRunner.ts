@@ -4,7 +4,7 @@ import { calculateMonthlyInvestmentGrowth } from './finance/investmentCalculator
 import { calculateMonthlySavingsGrowth } from './finance/savingsCalculator';
 import { calculateMonthlyDisposable, calculateMonthlyPayments } from './finance/monthlyPayments';
 import { distributeDebtPayments } from './finance/debtDistribution';
-import { ANNUAL_RATES } from './finance/constants';
+import { getAnnualRates } from './finance/constants';
 import { applyMilestonesToSimulation } from './milestones/applyMilestones';
 
 interface Allocation {
@@ -21,6 +21,7 @@ export function runFinancialSimulation(
 ): SimulationResult[] {
   const monthlyDisposable = calculateMonthlyDisposable(profile);
   const monthlyPayments = calculateMonthlyPayments(monthlyDisposable, allocation);
+  const rates = getAnnualRates(profile.rates);
   
   const debtPayments = distributeDebtPayments(monthlyPayments.debtPayment, profile.debt);
   const baseResults: SimulationResult[] = [];
@@ -31,34 +32,36 @@ export function runFinancialSimulation(
     const investmentProgression = calculateMonthlyInvestmentGrowth(
       profile.currentInvestments,
       monthlyPayments.investments,
-      months
+      months,
+      rates.INVESTMENT_RETURN
     );
 
     const savingsProgression = calculateMonthlySavingsGrowth(
       profile.currentSavings,
       monthlyPayments.savings,
-      months
+      months,
+      rates.SAVINGS_RETURN
     );
 
     // Calculate each debt type separately with its own interest rate
     const studentLoanProgression = calculateMonthlyDebtPaydown(
       profile.debt.studentLoans,
       debtPayments.studentLoans,
-      ANNUAL_RATES.DEBT_INTEREST.STUDENT_LOANS,
+      rates.DEBT_INTEREST.STUDENT_LOANS,
       months
     );
 
     const creditCardProgression = calculateMonthlyDebtPaydown(
       profile.debt.creditCards,
       debtPayments.creditCards,
-      ANNUAL_RATES.DEBT_INTEREST.CREDIT_CARDS,
+      rates.DEBT_INTEREST.CREDIT_CARDS,
       months
     );
 
     const otherLoanProgression = calculateMonthlyDebtPaydown(
       profile.debt.otherLoans,
       debtPayments.otherLoans,
-      ANNUAL_RATES.DEBT_INTEREST.OTHER_LOANS,
+      rates.DEBT_INTEREST.OTHER_LOANS,
       months
     );
 

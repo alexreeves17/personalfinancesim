@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ChevronDown, ChevronRight, TrendingUp, TrendingDown } from 'lucide-react';
-import type { SimulationResult } from '../types/finance';
+import type { SimulationResult, FinancialProfile } from '../types/finance';
 import { MonthlyDetails } from './MonthlyDetails';
 import { calculateGrowth } from '../utils/finance';
 
@@ -12,9 +12,10 @@ interface Props {
     investments: number;
     debtPayment: number;
   };
+  profile: FinancialProfile;
 }
 
-export function YearSummary({ result, previousResult, monthlyContributions }: Props) {
+export function YearSummary({ result, previousResult, monthlyContributions, profile }: Props) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   const MetricCard = ({ 
@@ -97,6 +98,7 @@ export function YearSummary({ result, previousResult, monthlyContributions }: Pr
         <MonthlyDetails 
           result={result} 
           monthlyContributions={monthlyContributions}
+          profile={profile}
         />
       )}
     </div>
