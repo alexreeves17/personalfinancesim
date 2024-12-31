@@ -1,7 +1,12 @@
 import type { FinancialProfile } from '../../types/finance';
+import { calculateTotalTax } from '../tax/index';
 
 export function calculateMonthlyDisposable(profile: FinancialProfile): number {
-  return (profile.annualIncome / 12) - profile.monthlyExpenses;
+  const annualTaxes = calculateTotalTax(profile.annualIncome, profile.state);
+  const monthlyIncome = profile.annualIncome / 12;
+  const monthlyTaxes = annualTaxes / 12;
+  
+  return monthlyIncome - monthlyTaxes - profile.monthlyExpenses;
 }
 
 export function calculateMonthlyPayments(disposableIncome: number, allocation: {

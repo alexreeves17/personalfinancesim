@@ -6,28 +6,38 @@ import { calculateMonthlyDisposable, calculateMonthlyPayments } from './finance/
 import { distributeDebtPayments } from './finance/debtDistribution';
 import { getAnnualRates } from './finance/constants';
 import { applyMilestonesToSimulation } from './milestones/applyMilestones';
-
-interface Allocation {
-  investments: number;
-  debtPayment: number;
-  savings: number;
-  discretionary: number;
-}
+import { calculateMonthlyTaxes } from './tax/monthlyTax';
 
 export function runFinancialSimulation(
   profile: FinancialProfile,
-  allocation: Allocation,
+  allocation: {
+    investments: number;
+    debtPayment: number;
+    savings: number;
+    discretionary: number;
+  },
   milestones: Milestone[]
 ): SimulationResult[] {
   const monthlyDisposable = calculateMonthlyDisposable(profile);
   const monthlyPayments = calculateMonthlyPayments(monthlyDisposable, allocation);
   const rates = getAnnualRates(profile.rates);
-  
   const debtPayments = distributeDebtPayments(monthlyPayments.debtPayment, profile.debt);
   const baseResults: SimulationResult[] = [];
-  
-  for (let year = 1; year <= 5; year++) {
-    const months = year * 12;
+
+  // Initialize first year with starting balances
+  baseResults.push({
+    year: new Date().getFullYear() + 1,
+    savings: profile.currentSavings,
+    investments: profile.currentInvestments,
+    debtRemaining: profile.debt.studentLoans + profile.debt.creditCards + profile.debt.otherLoans,
+    netWorth: profile.currentSavings + profile.currentInvestments - 
+      (profile.debt.studentLoans + profile.debt.creditCards + profile.debt.otherLoans),
+    goalProgress: {}
+  });
+
+  // Calculate future years
+  for (let year = 2; year <= 5; year++) {
+    const months = (year - 1) * 12;
     
     const investmentProgression = calculateMonthlyInvestmentGrowth(
       profile.currentInvestments,
@@ -43,7 +53,6 @@ export function runFinancialSimulation(
       rates.SAVINGS_RETURN
     );
 
-    // Calculate each debt type separately with its own interest rate
     const studentLoanProgression = calculateMonthlyDebtPaydown(
       profile.debt.studentLoans,
       debtPayments.studentLoans,
